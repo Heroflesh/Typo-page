@@ -1,6 +1,334 @@
-import { useState } from "react";
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TypoMatch — Trouve les bonnes polices pour ta page</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=Cormorant+Garamond:wght@500;600&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-const SYSTEM_PROMPT = `Tu es un expert en typographie pour les pages de vente, landing pages et pages d'opt-in.
+    body {
+      min-height: 100vh;
+      background: #0a0a0a;
+      color: #f0ece4;
+      font-family: 'DM Sans', sans-serif;
+    }
+
+    header {
+      border-bottom: 1px solid #1e1e1e;
+      padding: 20px 32px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .dot { width: 8px; height: 8px; border-radius: 50%; background: #c9a84c; }
+
+    .logo {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 20px;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+    }
+
+    .tag {
+      margin-left: auto;
+      font-size: 11px;
+      color: #555;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    main { max-width: 780px; margin: 0 auto; padding: 48px 24px; }
+
+    h1 {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: clamp(32px, 5vw, 50px);
+      font-weight: 600;
+      line-height: 1.15;
+      margin-bottom: 12px;
+    }
+
+    h1 span { color: #c9a84c; }
+
+    .subtitle { font-size: 16px; color: #888; line-height: 1.6; max-width: 500px; margin-bottom: 40px; }
+
+    label.field-label {
+      display: block;
+      font-size: 11px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: #555;
+      margin-bottom: 10px;
+    }
+
+    textarea {
+      width: 100%;
+      min-height: 220px;
+      background: #111;
+      border: 1px solid #222;
+      border-radius: 8px;
+      padding: 16px;
+      color: #f0ece4;
+      font-size: 15px;
+      line-height: 1.6;
+      resize: vertical;
+      outline: none;
+      font-family: 'DM Sans', sans-serif;
+      transition: border-color 0.2s;
+    }
+
+    textarea:focus { border-color: #c9a84c; }
+
+    .char-count { text-align: right; font-size: 12px; color: #444; margin-top: 6px; margin-bottom: 16px; }
+
+    .error { font-size: 13px; color: #e05252; margin-top: 6px; display: none; }
+
+    button#analyzeBtn {
+      width: 100%;
+      padding: 16px;
+      background: #c9a84c;
+      color: #0a0a0a;
+      border: none;
+      border-radius: 8px;
+      font-size: 15px;
+      font-weight: 600;
+      font-family: 'DM Sans', sans-serif;
+      letter-spacing: 0.02em;
+      cursor: pointer;
+      transition: all 0.2s;
+      margin-bottom: 40px;
+    }
+
+    button#analyzeBtn:disabled {
+      background: #1a1a1a;
+      color: #555;
+      cursor: not-allowed;
+    }
+
+    #loader {
+      display: none;
+      text-align: center;
+      padding: 40px;
+      color: #555;
+      font-size: 14px;
+      letter-spacing: 0.05em;
+    }
+
+    .spinner {
+      width: 32px; height: 32px;
+      border: 2px solid #222;
+      border-top: 2px solid #c9a84c;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin: 0 auto 16px;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    #result { display: none; animation: fadeIn 0.4s ease; }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(12px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .badges { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 32px; }
+
+    .badge {
+      padding: 6px 14px;
+      background: #1a1a1a;
+      border: 1px solid #222;
+      border-radius: 100px;
+      font-size: 13px;
+      color: #888;
+    }
+
+    .badge.primary {
+      background: #c9a84c18;
+      border-color: #c9a84c40;
+      color: #c9a84c;
+    }
+
+    .fonts-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    @media (max-width: 560px) { .fonts-grid { grid-template-columns: 1fr; } }
+
+    .font-card {
+      background: #111;
+      border: 1px solid #1e1e1e;
+      border-radius: 12px;
+      padding: 24px;
+    }
+
+    .font-card.heading { border-top: 3px solid #c9a84c; }
+    .font-card.body { border-top: 3px solid #7eb8c9; }
+
+    .card-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: #555;
+      margin-bottom: 12px;
+    }
+
+    .font-name { font-size: 26px; font-weight: 700; color: #f0ece4; margin-bottom: 4px; line-height: 1.2; }
+
+    .font-style-heading { font-size: 13px; color: #c9a84c; margin-bottom: 14px; }
+    .font-style-body { font-size: 13px; color: #7eb8c9; margin-bottom: 14px; }
+
+    .font-reason { font-size: 13px; color: #666; line-height: 1.6; }
+
+    .info-card {
+      background: #111;
+      border: 1px solid #1e1e1e;
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 16px;
+    }
+
+    .combo-text { font-size: 14px; color: #aaa; line-height: 1.7; margin-bottom: 16px; }
+    .combo-text strong { color: #f0ece4; font-weight: 500; }
+
+    .sizes-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+
+    .size-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: #555; margin-bottom: 4px; }
+    .size-heading { font-size: 14px; color: #c9a84c; }
+    .size-body { font-size: 14px; color: #7eb8c9; }
+
+    .bonus-card {
+      background: #c9a84c0d;
+      border: 1px solid #c9a84c25;
+      border-radius: 12px;
+      padding: 18px 20px;
+      margin-bottom: 28px;
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+    }
+
+    .bonus-icon { font-size: 18px; flex-shrink: 0; }
+    .bonus-text { font-size: 14px; color: #c9a84c; line-height: 1.6; }
+
+    .gf-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 20px;
+      background: #1a1a1a;
+      border: 1px solid #2a2a2a;
+      border-radius: 8px;
+      color: #888;
+      text-decoration: none;
+      font-size: 13px;
+      font-family: 'DM Sans', sans-serif;
+      transition: all 0.2s;
+    }
+
+    .gf-link:hover { border-color: #c9a84c40; color: #c9a84c; }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="dot"></div>
+  <span class="logo">TypoMatch</span>
+  <span class="tag">Analyse typographique IA</span>
+</header>
+
+<main>
+  <h1>Trouve les bonnes polices<br><span>pour ta page.</span></h1>
+  <p class="subtitle">Colle ton copywriting — l'IA analyse le ton, le positionnement et l'audience pour te recommander exactement 2 Google Fonts.</p>
+
+  <label class="field-label" for="copyInput">Ton copywriting</label>
+  <textarea id="copyInput" placeholder="Colle ici le texte de ta page de vente, landing page ou optin page... (titres, sous-titres, corps de texte, CTA, témoignages...)"></textarea>
+  <div class="char-count"><span id="charCount">0</span> caractères</div>
+  <div class="error" id="errorMsg">Colle au moins quelques sections de ton copywriting pour une analyse précise.</div>
+
+  <button id="analyzeBtn">Analyser et recommander les polices →</button>
+
+  <div id="loader">
+    <div class="spinner"></div>
+    Lecture du copywriting en cours...
+  </div>
+
+  <div id="result">
+    <div class="badges" id="badges"></div>
+
+    <div class="fonts-grid">
+      <div class="font-card heading">
+        <div class="card-label">Police Titres (Heading)</div>
+        <div class="font-name" id="headingName"></div>
+        <div class="font-style-heading" id="headingStyle"></div>
+        <div class="font-reason" id="headingReason"></div>
+      </div>
+      <div class="font-card body">
+        <div class="card-label">Police Corps (Body)</div>
+        <div class="font-name" id="bodyName"></div>
+        <div class="font-style-body" id="bodyStyle"></div>
+        <div class="font-reason" id="bodyReason"></div>
+      </div>
+    </div>
+
+    <div class="info-card">
+      <p class="combo-text"><strong>Pourquoi cette combinaison : </strong><span id="combo"></span></p>
+      <div class="sizes-grid">
+        <div>
+          <div class="size-label">Tailles titres</div>
+          <div class="size-heading" id="sizeHeading"></div>
+        </div>
+        <div>
+          <div class="size-label">Tailles corps</div>
+          <div class="size-body" id="sizeBody"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="bonus-card">
+      <span class="bonus-icon">💡</span>
+      <p class="bonus-text" id="bonus"></p>
+    </div>
+
+    <a class="gf-link" id="gfLink" href="#" target="_blank" rel="noopener noreferrer">
+      Voir sur Google Fonts →
+    </a>
+  </div>
+</main>
+
+<script>
+  const textarea = document.getElementById('copyInput');
+  const charCount = document.getElementById('charCount');
+  const btn = document.getElementById('analyzeBtn');
+  const loader = document.getElementById('loader');
+  const result = document.getElementById('result');
+  const errorMsg = document.getElementById('errorMsg');
+
+  textarea.addEventListener('input', () => {
+    charCount.textContent = textarea.value.length;
+  });
+
+  btn.addEventListener('click', analyze);
+
+  async function analyze() {
+    const copy = textarea.value.trim();
+    errorMsg.style.display = 'none';
+
+    if (copy.length < 50) {
+      errorMsg.style.display = 'block';
+      return;
+    }
+
+    btn.disabled = true;
+    loader.style.display = 'block';
+    result.style.display = 'none';
+
+    const SYSTEM_PROMPT = `Tu es un expert en typographie pour les pages de vente, landing pages et pages d'opt-in.
 
 L'utilisateur va te donner le copywriting complet d'une page. Tu dois analyser le ton, le positionnement, l'audience cible, et le type de page pour recommander exactement 2 polices Google Fonts.
 
@@ -8,7 +336,7 @@ Réponds UNIQUEMENT en JSON valide, sans backticks, sans markdown, sans explicat
 
 {
   "type_page": "Page de vente | Landing Page | Optin Page | VSL Page | etc.",
-  "ton_detecte": "une phrase courte décrivant le ton (ex: Expert sérieux, Coach chaleureux, Business premium...)",
+  "ton_detecte": "une phrase courte décrivant le ton",
   "audience": "description courte de l'audience cible détectée",
   "police_titre": {
     "nom": "Nom exact Google Fonts",
@@ -26,21 +354,6 @@ Réponds UNIQUEMENT en JSON valide, sans backticks, sans markdown, sans explicat
   "conseil_bonus": "un conseil typographique spécifique à ce type de page (1 phrase)"
 }`;
 
-export default function TypoRecommender() {
-  const [copy, setCopy] = useState("");
-  const [result, setResult] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-
-  const analyze = async () => {
-    if (!copy.trim() || copy.trim().length < 50) {
-      setError("Colle au moins quelques sections de ton copywriting pour une analyse précise.");
-      return;
-    }
-    setError("");
-    setResult(null);
-    setLoading(true);
-
     try {
       const response = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",
@@ -49,308 +362,52 @@ export default function TypoRecommender() {
           model: "claude-sonnet-4-20250514",
           max_tokens: 1000,
           system: SYSTEM_PROMPT,
-          messages: [{ role: "user", content: `Voici le copywriting de ma page :\n\n${copy}` }],
-        }),
+          messages: [{ role: "user", content: `Voici le copywriting de ma page :\n\n${copy}` }]
+        })
       });
 
       const data = await response.json();
-      const text = data.content?.map(i => i.text || "").join("") || "";
-      const parsed = JSON.parse(text.replace(/```json|```/g, "").trim());
-      setResult(parsed);
+      const text = data.content?.map(i => i.text || '').join('') || '';
+      const parsed = JSON.parse(text.replace(/```json|```/g, '').trim());
+
+      renderResult(parsed);
     } catch (e) {
-      setError("Erreur lors de l'analyse. Réessaie.");
+      errorMsg.textContent = "Erreur lors de l'analyse. Vérifie ta connexion et réessaie.";
+      errorMsg.style.display = 'block';
     } finally {
-      setLoading(false);
+      btn.disabled = false;
+      loader.style.display = 'none';
     }
-  };
+  }
 
-  const googleFontsUrl = result
-    ? `https://fonts.google.com/?query=${encodeURIComponent(result.police_titre.nom)}`
-    : "#";
+  function renderResult(d) {
+    // Badges
+    const badges = document.getElementById('badges');
+    badges.innerHTML = [
+      `<span class="badge primary">${d.type_page}</span>`,
+      `<span class="badge">${d.ton_detecte}</span>`,
+      `<span class="badge">${d.audience}</span>`
+    ].join('');
 
-  return (
-    <div style={{
-      minHeight: "100vh",
-      background: "#0a0a0a",
-      color: "#f0ece4",
-      fontFamily: "'DM Sans', sans-serif",
-      padding: "0",
-    }}>
-      <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=Cormorant+Garamond:wght@500;600&display=swap" rel="stylesheet" />
+    document.getElementById('headingName').textContent = d.police_titre.nom;
+    document.getElementById('headingStyle').textContent = d.police_titre.style;
+    document.getElementById('headingReason').textContent = d.police_titre.raison;
 
-      {/* Header */}
-      <div style={{
-        borderBottom: "1px solid #1e1e1e",
-        padding: "24px 32px",
-        display: "flex",
-        alignItems: "center",
-        gap: "12px",
-      }}>
-        <div style={{
-          width: "8px", height: "8px",
-          borderRadius: "50%",
-          background: "#c9a84c",
-        }} />
-        <span style={{
-          fontFamily: "'Cormorant Garamond', serif",
-          fontSize: "20px",
-          fontWeight: 600,
-          letterSpacing: "0.02em",
-          color: "#f0ece4",
-        }}>
-          TypoMatch
-        </span>
-        <span style={{
-          marginLeft: "auto",
-          fontSize: "12px",
-          color: "#555",
-          letterSpacing: "0.08em",
-          textTransform: "uppercase",
-        }}>
-          Analyse typographique IA
-        </span>
-      </div>
+    document.getElementById('bodyName').textContent = d.police_corps.nom;
+    document.getElementById('bodyStyle').textContent = d.police_corps.style;
+    document.getElementById('bodyReason').textContent = d.police_corps.raison;
 
-      <div style={{ maxWidth: "780px", margin: "0 auto", padding: "48px 24px" }}>
+    document.getElementById('combo').textContent = d.combinaison;
+    document.getElementById('sizeHeading').textContent = d.taille_titre_recommandee;
+    document.getElementById('sizeBody').textContent = d.taille_corps_recommandee;
+    document.getElementById('bonus').textContent = d.conseil_bonus;
 
-        {/* Titre */}
-        <div style={{ marginBottom: "40px" }}>
-          <h1 style={{
-            fontFamily: "'Cormorant Garamond', serif",
-            fontSize: "clamp(32px, 5vw, 52px)",
-            fontWeight: 600,
-            lineHeight: 1.15,
-            marginBottom: "12px",
-            color: "#f0ece4",
-          }}>
-            Trouve les bonnes polices<br />
-            <span style={{ color: "#c9a84c" }}>pour ta page.</span>
-          </h1>
-          <p style={{
-            fontSize: "16px",
-            color: "#888",
-            lineHeight: 1.6,
-            maxWidth: "500px",
-          }}>
-            Colle ton copywriting — l'IA analyse le ton, le positionnement et l'audience pour te recommander exactement 2 Google Fonts.
-          </p>
-        </div>
+    const gfLink = document.getElementById('gfLink');
+    gfLink.href = `https://fonts.google.com/?query=${encodeURIComponent(d.police_titre.nom)}`;
 
-        {/* Textarea */}
-        <div style={{ marginBottom: "16px" }}>
-          <label style={{
-            display: "block",
-            fontSize: "12px",
-            letterSpacing: "0.1em",
-            textTransform: "uppercase",
-            color: "#555",
-            marginBottom: "10px",
-          }}>
-            Ton copywriting
-          </label>
-          <textarea
-            value={copy}
-            onChange={e => setCopy(e.target.value)}
-            placeholder="Colle ici le texte de ta page de vente, landing page ou optin page... (titres, sous-titres, corps de texte, CTA, témoignages...)"
-            style={{
-              width: "100%",
-              minHeight: "220px",
-              background: "#111",
-              border: "1px solid #222",
-              borderRadius: "8px",
-              padding: "16px",
-              color: "#f0ece4",
-              fontSize: "15px",
-              lineHeight: 1.6,
-              resize: "vertical",
-              outline: "none",
-              fontFamily: "'DM Sans', sans-serif",
-              boxSizing: "border-box",
-              transition: "border-color 0.2s",
-            }}
-            onFocus={e => e.target.style.borderColor = "#c9a84c"}
-            onBlur={e => e.target.style.borderColor = "#222"}
-          />
-          <div style={{
-            display: "flex",
-            justifyContent: "space-between",
-            marginTop: "6px",
-          }}>
-            {error && <span style={{ fontSize: "13px", color: "#e05252" }}>{error}</span>}
-            <span style={{ fontSize: "12px", color: "#444", marginLeft: "auto" }}>
-              {copy.length} caractères
-            </span>
-          </div>
-        </div>
-
-        {/* Bouton */}
-        <button
-          onClick={analyze}
-          disabled={loading}
-          style={{
-            width: "100%",
-            padding: "16px",
-            background: loading ? "#1a1a1a" : "#c9a84c",
-            color: loading ? "#555" : "#0a0a0a",
-            border: "none",
-            borderRadius: "8px",
-            fontSize: "15px",
-            fontWeight: 600,
-            fontFamily: "'DM Sans', sans-serif",
-            letterSpacing: "0.02em",
-            cursor: loading ? "not-allowed" : "pointer",
-            transition: "all 0.2s",
-            marginBottom: "40px",
-          }}
-        >
-          {loading ? "Analyse en cours..." : "Analyser et recommander les polices →"}
-        </button>
-
-        {/* Loader */}
-        {loading && (
-          <div style={{
-            textAlign: "center",
-            padding: "40px",
-            color: "#555",
-            fontSize: "14px",
-            letterSpacing: "0.05em",
-          }}>
-            <div style={{
-              width: "32px", height: "32px",
-              border: "2px solid #222",
-              borderTop: "2px solid #c9a84c",
-              borderRadius: "50%",
-              animation: "spin 0.8s linear infinite",
-              margin: "0 auto 16px",
-            }} />
-            Lecture du copywriting...
-            <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-          </div>
-        )}
-
-        {/* Résultat */}
-        {result && (
-          <div style={{ animation: "fadeIn 0.4s ease" }}>
-            <style>{`@keyframes fadeIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }`}</style>
-
-            {/* Badges */}
-            <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", marginBottom: "32px" }}>
-              {[result.type_page, result.ton_detecte, result.audience].map((badge, i) => (
-                <span key={i} style={{
-                  padding: "6px 14px",
-                  background: i === 0 ? "#c9a84c18" : "#1a1a1a",
-                  border: `1px solid ${i === 0 ? "#c9a84c40" : "#222"}`,
-                  borderRadius: "100px",
-                  fontSize: "13px",
-                  color: i === 0 ? "#c9a84c" : "#888",
-                }}>
-                  {badge}
-                </span>
-              ))}
-            </div>
-
-            {/* Les 2 polices */}
-            <div style={{ display: "grid", gap: "16px", marginBottom: "24px", gridTemplateColumns: "1fr 1fr" }}>
-              {[
-                { label: "Police Titres (Heading)", data: result.police_titre, accent: "#c9a84c" },
-                { label: "Police Corps (Body)", data: result.police_corps, accent: "#7eb8c9" },
-              ].map(({ label, data, accent }) => (
-                <div key={label} style={{
-                  background: "#111",
-                  border: `1px solid #1e1e1e`,
-                  borderRadius: "12px",
-                  padding: "24px",
-                  borderTop: `3px solid ${accent}`,
-                }}>
-                  <div style={{ fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.1em", color: "#555", marginBottom: "12px" }}>
-                    {label}
-                  </div>
-                  <div style={{
-                    fontSize: "28px",
-                    fontWeight: 700,
-                    color: "#f0ece4",
-                    marginBottom: "4px",
-                    lineHeight: 1.2,
-                  }}>
-                    {data.nom}
-                  </div>
-                  <div style={{ fontSize: "13px", color: accent, marginBottom: "14px" }}>
-                    {data.style}
-                  </div>
-                  <p style={{ fontSize: "13px", color: "#666", lineHeight: 1.6, margin: 0 }}>
-                    {data.raison}
-                  </p>
-                </div>
-              ))}
-            </div>
-
-            {/* Infos supplémentaires */}
-            <div style={{
-              background: "#111",
-              border: "1px solid #1e1e1e",
-              borderRadius: "12px",
-              padding: "24px",
-              marginBottom: "16px",
-            }}>
-              <p style={{ fontSize: "14px", color: "#aaa", lineHeight: 1.7, margin: "0 0 16px" }}>
-                <span style={{ color: "#f0ece4", fontWeight: 500 }}>Pourquoi cette combinaison : </span>
-                {result.combinaison}
-              </p>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
-                <div>
-                  <div style={{ fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.08em", color: "#555", marginBottom: "4px" }}>Tailles titres</div>
-                  <div style={{ fontSize: "14px", color: "#c9a84c" }}>{result.taille_titre_recommandee}</div>
-                </div>
-                <div>
-                  <div style={{ fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.08em", color: "#555", marginBottom: "4px" }}>Tailles corps</div>
-                  <div style={{ fontSize: "14px", color: "#7eb8c9" }}>{result.taille_corps_recommandee}</div>
-                </div>
-              </div>
-            </div>
-
-            {/* Conseil bonus */}
-            <div style={{
-              background: "#c9a84c0d",
-              border: "1px solid #c9a84c25",
-              borderRadius: "12px",
-              padding: "18px 20px",
-              marginBottom: "28px",
-              display: "flex",
-              gap: "12px",
-              alignItems: "flex-start",
-            }}>
-              <span style={{ fontSize: "18px" }}>💡</span>
-              <p style={{ fontSize: "14px", color: "#c9a84c", lineHeight: 1.6, margin: 0 }}>
-                {result.conseil_bonus}
-              </p>
-            </div>
-
-            {/* CTA Google Fonts */}
-            <a
-              href={googleFontsUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "8px",
-                padding: "12px 20px",
-                background: "#1a1a1a",
-                border: "1px solid #2a2a2a",
-                borderRadius: "8px",
-                color: "#888",
-                textDecoration: "none",
-                fontSize: "13px",
-                transition: "all 0.2s",
-              }}
-              onMouseEnter={e => { e.target.style.borderColor = "#c9a84c40"; e.target.style.color = "#c9a84c"; }}
-              onMouseLeave={e => { e.target.style.borderColor = "#2a2a2a"; e.target.style.color = "#888"; }}
-            >
-              Voir sur Google Fonts →
-            </a>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
+    result.style.display = 'block';
+    result.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+</script>
+</body>
+</html>
